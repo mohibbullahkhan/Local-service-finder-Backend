@@ -1,131 +1,128 @@
-# LocalConnect Backend (Express + Prisma + PostgreSQL)
+# LocalConnect Backend API
 
-This backend serves **LocalConnect**, a local-services marketplace application connecting buyers with local service providers (electricians, plumbers, tutors, mechanics, cleaners, AC technicians).
+Production-ready TypeScript backend for **LocalConnect**, a local-services marketplace application connecting buyers with local service providers (electricians, plumbers, tutors, mechanics, cleaners, AC technicians).
 
-## Tech Stack
-- **Node.js & Express**: High-performance RESTful API server using TypeScript throughout.
-- **Prisma ORM**: Strongly typed database interactions with PostgreSQL.
-- **PostgreSQL (Neon)**: Cloud-native PostgreSQL with support for connection pooling and direct migration access.
-- **Zod**: Robust request body, query, and parameter validation.
-- **JWT & Bcrypt**: Secure 15-minute access token & 30-day refresh token rotation.
-- **Multer & Storage**: Modular file upload utility serving images via static routes `/uploads` or `/tmp` on serverless platforms.
-- **Security**: Helmet, CORS, global and auth rate limiting (`express-rate-limit`).
+Built with **Node.js, Express, Prisma ORM, PostgreSQL (Neon), Zod, JWT, and Multer**.
 
 ---
 
-## Getting Started
+## 🚀 Quick Start & Setup Steps
 
-### 1. Installation
-
+### 1. Install Dependencies
 ```bash
-git clone https://github.com/mohibbullahkhan/Local-service-finder-Backend.git
-cd Local-service-finder-Backend
 npm install
 ```
 
 ### 2. Environment Configuration
-
 Copy `.env.example` to `.env`:
-
 ```bash
 cp .env.example .env
 ```
+Provide your Neon PostgreSQL database URLs (`DATABASE_URL` for pooled connection, `DIRECT_URL` for direct connection) and JWT secrets.
 
-Configure your PostgreSQL database connection strings in `.env`:
-
-```env
-PORT=5000
-NODE_ENV=development
-CORS_ORIGIN=*
-
-DATABASE_URL="postgresql://user:password@ep-xxxx-pooler.neon.tech/neondb?sslmode=require"
-DIRECT_URL="postgresql://user:password@ep-xxxx.neon.tech/neondb?sslmode=require"
-
-JWT_ACCESS_SECRET=your_jwt_access_secret
-JWT_REFRESH_SECRET=your_jwt_refresh_secret
-```
-
-### 3. Database Migration & Seed
-
-Synchronize your schema and populate realistic test data:
-
+### 3. Database Migration & Seeding
 ```bash
+# Push Prisma schema to PostgreSQL database
 npx prisma db push
+# Or run dev migrations:
+# npx prisma migrate dev --name init
+
+# Seed database with realistic test data
 npm run prisma:seed
 ```
 
-### 4. Running the Application
-
+### 4. Run Development Server
 ```bash
-# Development mode with hot reload
 npm run dev
+```
+The server will start at `http://localhost:5000`.
 
-# Production build and run
-npm run build
-npm start
+### 5. Run Automated Smoke Test Regression Suite
+```bash
+npm run test:smoke
 ```
 
 ---
 
-## Seeded Test Accounts
+## 🔑 Pre-Seeded Test Credentials
 
-| Role | Phone | Password | Name |
+| Role | Phone Number | Password | Name / Details |
 |---|---|---|---|
-| **BUYER** | `+8801811111111` | `password123` | Rahim Chowdhury |
-| **PROVIDER** | `+8801911111111` | `password123` | Karim Electrical Solutions |
-| **ADMIN** | `+8801700000000` | `password123` | System Admin |
+| **BUYER** | `+8801811111111` | `password123` | Rahim Chowdhury (Customer) |
+| **PROVIDER** | `+8801911111111` | `password123` | Karim Electrical Solutions (Verified Pro) |
+| **ADMIN** | `+8801700000000` | `password123` | System Administrator |
 
 ---
 
-## API Endpoints Summary
+## 📡 API Routes & Authorization Reference
+
+### Health & System
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `GET` | `/` | Public | Welcome status API information |
+| `GET` | `/api/health` | Public | System uptime & healthcheck |
 
 ### Authentication (`/api/auth`)
-- `POST /api/auth/register` — Register a buyer or provider account
-- `POST /api/auth/login` — Authenticate and receive access & refresh tokens
-- `POST /api/auth/refresh` — Rotate refresh token & obtain new access token
-- `POST /api/auth/logout` — Revoke refresh token
-- `GET /api/auth/me` — Get current authenticated user profile
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | Register new user (`BUYER` or `PROVIDER`) |
+| `POST` | `/api/auth/login` | Public | Authenticate user & receive access + refresh tokens |
+| `POST` | `/api/auth/refresh` | Public | Rotate refresh token and obtain new access token |
+| `POST` | `/api/auth/logout` | Public | Revoke refresh token |
+| `GET` | `/api/auth/me` | Authenticated | Get current authenticated user (+ provider profile if provider) |
+
+### Users (`/api/users`)
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `PATCH` | `/api/users/me` | Authenticated | Update user name, email, or avatar URL |
 
 ### Categories (`/api/categories`)
-- `GET /api/categories` — List all service categories
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `GET` | `/api/categories` | Public | List all available service categories |
 
-### Providers (`/api/providers`)
-- `GET /api/providers` — Search/filter active providers by city, area, category, keyword (paginated)
-- `GET /api/providers/:id` — Get detailed provider profile with services, photos, reviews
-- `POST /api/providers/me` — Create provider profile (Provider role)
-- `GET /api/providers/me` — Get own provider profile
-- `PATCH /api/providers/me` — Update own provider profile
-- `POST / PATCH / DELETE /api/providers/me/services/:id?` — Manage services under provider profile
-- `POST / DELETE /api/providers/me/photos/:id?` — Upload/delete photos
-- `POST /api/providers/me/verification` — Request account verification (`PENDING`)
+### Service Providers (`/api/providers`)
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `GET` | `/api/providers` | Public | List active providers with city, area, category, q, page filters |
+| `GET` | `/api/providers/:id` | Public | Get provider profile details, services, photos, and reviews |
+| `GET` | `/api/providers/:id/reviews` | Public | Get paginated reviews for a provider |
+| `POST` | `/api/providers/me` | `PROVIDER` role | Create caller's business profile |
+| `GET` | `/api/providers/me` | `PROVIDER` role | Get caller's own provider profile |
+| `PATCH` | `/api/providers/me` | `PROVIDER` role | Partial update of caller's own provider profile |
+| `POST` | `/api/providers/me/services` | `PROVIDER` role | Add a new service offering |
+| `PATCH` | `/api/providers/me/services/:id` | `PROVIDER` role | Update an owned service offering |
+| `DELETE` | `/api/providers/me/services/:id` | `PROVIDER` role | Delete an owned service offering |
+| `POST` | `/api/providers/me/photos` | `PROVIDER` role | Add a photo (direct URL or `multipart/form-data` upload) |
+| `DELETE` | `/api/providers/me/photos/:id` | `PROVIDER` role | Delete an owned photo |
+| `POST` | `/api/providers/me/verification` | `PROVIDER` role | Request provider account verification (`PENDING`) |
 
 ### Favorites (`/api/favorites`)
-- `GET /api/favorites` — List buyer's favorited providers
-- `POST /api/favorites/:providerId` — Favorite a provider
-- `DELETE /api/favorites/:providerId` — Unfavorite a provider
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `GET` | `/api/favorites` | `BUYER` role | List caller's favorited service providers |
+| `POST` | `/api/favorites/:providerId` | `BUYER` role | Favorite a provider |
+| `DELETE` | `/api/favorites/:providerId` | `BUYER` role | Remove provider from favorites |
 
 ### Inquiries (`/api/inquiries`)
-- `POST /api/inquiries` — Send service inquiry (Buyer)
-- `GET /api/inquiries/sent` — View buyer's sent inquiries
-- `GET /api/inquiries/received` — View provider's received inquiries
-- `PATCH /api/inquiries/:id/status` — Update status (`PENDING` → `ACCEPTED`/`DECLINED`/`CANCELLED` → `COMPLETED`)
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `POST` | `/api/inquiries` | `BUYER` role | Submit a service inquiry to a provider |
+| `GET` | `/api/inquiries/sent` | `BUYER` role | List inquiries sent by caller |
+| `GET` | `/api/inquiries/received` | `PROVIDER` role | List inquiries received by caller's provider profile |
+| `PATCH` | `/api/inquiries/:id/status` | Authenticated | Update status (`PENDING` → `ACCEPTED`/`DECLINED`/`CANCELLED` → `COMPLETED`) |
 
 ### Reviews (`/api/reviews`)
-- `POST /api/reviews` — Submit review for a `COMPLETED` inquiry (atomic rating recalculation)
-- `GET /api/reviews/providers/:id/reviews` — Get paginated reviews for a provider
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `POST` | `/api/reviews` | `BUYER` role | Submit review for a `COMPLETED` inquiry (recalculates ratingAvg) |
+| `GET` | `/api/reviews/providers/:id/reviews` | Public | Get paginated reviews for a provider |
 
-### Admin (`/api/admin`)
-- `GET /api/admin/verifications` — List providers by verification status
-- `PATCH /api/admin/verifications/:providerId` — Approve or reject provider verification
-- `GET /api/admin/stats` — System user, profile, and inquiry metrics
-- `POST / PATCH /api/admin/categories/:id?` — Manage platform categories
-
----
-
-## Deployment on Vercel
-
-This repository is ready for serverless deployment on Vercel:
-
-1. Import the repository in [Vercel](https://vercel.com).
-2. Set environment variables (`DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`).
-3. Deploy! Vercel automatically runs `prisma generate && tsc` via the `vercel-build` script.
+### Administration (`/api/admin`)
+| Method | Path | Auth Requirement | Description |
+|---|---|---|---|
+| `GET` | `/api/admin/verifications` | `ADMIN` role | List providers by verification status (`PENDING`, etc.) |
+| `PATCH` | `/api/admin/verifications/:providerId` | `ADMIN` role | Approve (`VERIFIED`) or reject (`REJECTED`) provider verification |
+| `GET` | `/api/admin/stats` | `ADMIN` role | Retrieve system user, profile, and inquiry metrics |
+| `POST` | `/api/admin/categories` | `ADMIN` role | Create a new platform service category |
+| `PATCH` | `/api/admin/categories/:id` | `ADMIN` role | Update an existing service category |

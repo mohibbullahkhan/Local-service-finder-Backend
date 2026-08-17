@@ -13,6 +13,8 @@ import {
   createServiceSchema,
   updateServiceSchema,
 } from './providers.schema';
+import { reviewsController } from '../reviews/reviews.controller';
+import { getReviewsQuerySchema } from '../reviews/reviews.schema';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -29,6 +31,12 @@ router.get(
 );
 
 router.get('/:id', asyncHandler(providersController.getProviderById));
+
+router.get(
+  '/:id/reviews',
+  validate({ query: getReviewsQuerySchema }),
+  asyncHandler(reviewsController.getProviderReviews)
+);
 
 // Provider self-management routes
 router.use('/me', authenticate, roleGuard([Role.PROVIDER]));

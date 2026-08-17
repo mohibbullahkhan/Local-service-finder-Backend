@@ -24,7 +24,14 @@ export interface StorageService {
 class LocalStorageService implements StorageService {
   async saveFile(file: Express.Multer.File): Promise<string> {
     const uploadsDir = getUploadsDir();
-    const ext = path.extname(file.originalname);
+    let ext = path.extname(file.originalname || '');
+    if (!ext) {
+      if (file.mimetype === 'image/png') ext = '.png';
+      else if (file.mimetype === 'image/gif') ext = '.gif';
+      else if (file.mimetype === 'image/webp') ext = '.webp';
+      else ext = '.jpg';
+    }
+
     const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
     const filePath = path.join(uploadsDir, filename);
 
