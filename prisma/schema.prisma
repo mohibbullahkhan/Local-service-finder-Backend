@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  BUYER
+  PROVIDER
+  ADMIN
+}
+
+enum InquiryStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+  CANCELLED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  phone         String    @unique
+  passwordHash  String
+  role          Role      @default(BUYER)
+  name          String
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  providerProfile ProviderProfile?
+  favorites       Favorite[]
+  inquiriesSent   Inquiry[]        @relation("BuyerInquiries")
+  reviews         Review[]
+  refreshTokens   RefreshToken[]
+}
+
+model ProviderProfile {
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName       String
+  description        String
+  city               String
+  area               String
+  latitude           Float?
+  longitude          Float?
+  whatsapp           String?
+  verificationStatus VerificationStatus  @default(UNVERIFIED)
+  ratingAvg          Float               @default(0)
+  ratingCount        Int                 @default(0)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  categories  ProviderCategory[]
+  services    Service[]
+  photos      ProviderPhoto[]
+  inquiries   Inquiry[]
+  reviews     Review[]
+  favoritedBy Favorite[]
+
+  @@index([city, area])
+}
+
+model Category {
+  id        String              @id @default(cuid())
+  name      String              @unique
+  icon      String
+  providers ProviderCategory[]
+}
+
+model ProviderCategory {
+  providerId String
+  categoryId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category   Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([providerId, categoryId])
+}
+
+model Service {
+  id         String          @id @default(cuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  name       String
+  priceMin   Int?
+  priceMax   Int?
+  unit       String?
+}
+
+model ProviderPhoto {
+  id         String          @id @default(cuid())
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  url        String
+  isCover    Boolean         @default(false)
+}
+
+model Favorite {
+  userId     String
+  providerId String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+
+  @@id([userId, providerId])
+}
+
+model Inquiry {
+  id         String        @id @default(cuid())
+  buyerId    String
+  providerId String
+  buyer      User            @relation("BuyerInquiries", fields: [buyerId], references: [id], onDelete: Cascade)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  message    String
+  status     InquiryStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  review     Review?
+}
+
+model Review {
+  id         String          @id @default(cuid())
+  inquiryId  String          @unique
+  inquiry    Inquiry         @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  buyerId    String
+  buyer      User            @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String?
+  createdAt  DateTime        @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
