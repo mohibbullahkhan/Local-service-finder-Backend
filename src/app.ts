@@ -31,6 +31,15 @@ app.use(globalRateLimiter);
 // Static uploads directory serving
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Welcome root endpoint
+app.get('/', (req: Request, res: Response) => {
+  return sendSuccess(res, {
+    message: 'LocalConnect Backend API is live and operational!',
+    healthCheck: '/api/health',
+    documentation: 'https://github.com/mohibbullahkhan/Local-service-finder-Backend',
+  });
+});
+
 // Uptime healthcheck endpoint
 app.get('/api/health', (req: Request, res: Response) => {
   return sendSuccess(res, {
