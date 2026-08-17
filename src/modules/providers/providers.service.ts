@@ -18,6 +18,7 @@ export class ProvidersService {
 
     const where: Prisma.ProviderProfileWhereInput = {
       isActive: true,
+      verificationStatus: VerificationStatus.VERIFIED,
       ...(city && { city: { equals: city, mode: 'insensitive' } }),
       ...(area && { area: { equals: area, mode: 'insensitive' } }),
       ...(category && {
@@ -183,12 +184,22 @@ export class ProvidersService {
   // Service Management
   async addService(userId: string, input: CreateServiceInput) {
     const profile = await this.getOwnProfile(userId);
-    return prisma.service.create({
+
+    const newService = await prisma.service.create({
       data: {
         ...input,
         providerId: profile.id,
       },
     });
+
+    if (profile.verificationStatus === VerificationStatus.UNVERIFIED) {
+      await prisma.providerProfile.update({
+        where: { id: profile.id },
+        data: { verificationStatus: VerificationStatus.PENDING },
+      });
+    }
+
+    return newService;
   }
 
   async updateService(userId: string, serviceId: string, input: UpdateServiceInput) {
