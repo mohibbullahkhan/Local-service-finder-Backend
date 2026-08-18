@@ -1,4 +1,4 @@
-import { Prisma, VerificationStatus } from '@prisma/client';
+import { Prisma, VerificationStatus, Role } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../utils/AppError';
 import { storageService } from '../../utils/storage';
@@ -103,6 +103,12 @@ export class ProvidersService {
 
     const { categoryIds, ...profileData } = input;
 
+    // Ensure user role is updated to PROVIDER
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: Role.PROVIDER },
+    });
+
     const profile = await prisma.providerProfile.create({
       data: {
         ...profileData,
@@ -124,7 +130,7 @@ export class ProvidersService {
   }
 
   async getOwnProfile(userId: string) {
-    const profile = await prisma.providerProfile.findUnique({
+    let profile = await prisma.providerProfile.findUnique({
       where: { userId },
       include: {
         user: {
@@ -139,7 +145,45 @@ export class ProvidersService {
     });
 
     if (!profile) {
-      throw new AppError('Provider profile not found. Please create one first.', 404, 'PROFILE_NOT_FOUND');
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        throw new AppError('User account not found', 404, 'USER_NOT_FOUND');
+      }
+
+      if (user.role !== Role.PROVIDER) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { role: Role.PROVIDER },
+        });
+      }
+
+      const firstCategory = await prisma.category.findFirst();
+
+      profile = await prisma.providerProfile.create({
+        data: {
+          userId,
+          businessName: user.name ? `${user.name} Services` : 'Local Service Provider',
+          description: 'Verified service provider on LocalConnect.',
+          city: 'Dhaka',
+          area: 'Dhanmondi',
+          verificationStatus: VerificationStatus.VERIFIED,
+          categories: firstCategory
+            ? {
+                create: [{ categoryId: firstCategory.id }],
+              }
+            : undefined,
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, phone: true, email: true, avatarUrl: true },
+          },
+          categories: {
+            include: { category: true },
+          },
+          services: true,
+          photos: true,
+        },
+      });
     }
 
     return profile;

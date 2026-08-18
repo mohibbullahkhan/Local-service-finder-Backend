@@ -3,13 +3,53 @@ import { UpdateUserInput } from './users.schema';
 import { AppError } from '../../utils/AppError';
 
 export class UsersService {
+  async getMe(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        providerProfile: {
+          include: {
+            categories: {
+              include: { category: true },
+            },
+            services: true,
+            photos: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    return user;
+  }
+
   async updateUser(userId: string, input: UpdateUserInput) {
     if (input.email) {
-      const existing = await prisma.user.findFirst({
+      const existingEmail = await prisma.user.findFirst({
         where: { email: input.email, NOT: { id: userId } },
       });
-      if (existing) {
+      if (existingEmail) {
         throw new AppError('Email is already taken by another account', 409, 'EMAIL_TAKEN');
+      }
+    }
+
+    if (input.phone) {
+      const existingPhone = await prisma.user.findFirst({
+        where: { phone: input.phone, NOT: { id: userId } },
+      });
+      if (existingPhone) {
+        throw new AppError('Phone number is already taken by another account', 409, 'PHONE_TAKEN');
       }
     }
 
@@ -17,6 +57,7 @@ export class UsersService {
       where: { id: userId },
       data: {
         ...(input.name && { name: input.name }),
+        ...(input.phone && { phone: input.phone }),
         ...(input.email !== undefined && { email: input.email }),
         ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
       },
@@ -29,6 +70,15 @@ export class UsersService {
         avatarUrl: true,
         createdAt: true,
         updatedAt: true,
+        providerProfile: {
+          include: {
+            categories: {
+              include: { category: true },
+            },
+            services: true,
+            photos: true,
+          },
+        },
       },
     });
 

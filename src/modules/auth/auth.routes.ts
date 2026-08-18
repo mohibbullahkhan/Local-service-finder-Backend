@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authController } from './auth.controller';
 import { validate } from '../../middleware/validate';
-import { registerSchema, loginSchema, refreshSchema, logoutSchema } from './auth.schema';
+import { registerSchema, loginSchema, refreshSchema, logoutSchema, resetPasswordSchema } from './auth.schema';
 import { authenticate } from '../../middleware/auth';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { authRateLimiter } from '../../middleware/rateLimiters';
@@ -20,6 +20,13 @@ router.post(
   authRateLimiter,
   validate({ body: loginSchema }),
   asyncHandler(authController.login)
+);
+
+router.post(
+  '/reset-password',
+  authRateLimiter,
+  validate({ body: resetPasswordSchema }),
+  asyncHandler(authController.resetPassword)
 );
 
 router.post(

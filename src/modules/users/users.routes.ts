@@ -7,7 +7,20 @@ import { asyncHandler } from '../../utils/asyncHandler';
 
 const router = Router();
 
+router.get(
+  '/me',
+  authenticate,
+  asyncHandler(usersController.getMe)
+);
+
 router.patch(
+  '/me',
+  authenticate,
+  validate({ body: updateUserSchema }),
+  asyncHandler(usersController.updateMe)
+);
+
+router.put(
   '/me',
   authenticate,
   validate({ body: updateUserSchema }),

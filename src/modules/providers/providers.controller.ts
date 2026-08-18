@@ -10,6 +10,9 @@ export class ProvidersController {
 
   getProviderById = async (req: Request, res: Response) => {
     const id = req.params.id as string;
+    if (id === 'me') {
+      return this.getOwnProfile(req, res);
+    }
     const provider = await providersService.getProviderById(id);
     return sendSuccess(res, provider);
   };

@@ -1,5 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import streamifier from 'streamifier';
+import { env } from '../config/env';
+
+export interface StorageService {
+  saveFile(file: Express.Multer.File): Promise<string>;
+  deleteFile(fileUrl: string): Promise<void>;
+}
 
 const getUploadsDir = () => {
   if (process.env.VERCEL) {
@@ -15,11 +23,6 @@ const getUploadsDir = () => {
   }
   return dir;
 };
-
-export interface StorageService {
-  saveFile(file: Express.Multer.File): Promise<string>;
-  deleteFile(fileUrl: string): Promise<void>;
-}
 
 class LocalStorageService implements StorageService {
   async saveFile(file: Express.Multer.File): Promise<string> {
@@ -55,4 +58,54 @@ class LocalStorageService implements StorageService {
   }
 }
 
-export const storageService = new LocalStorageService();
+const isCloudinaryConfigured = Boolean(
+  env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
+);
+
+if (isCloudinaryConfigured) {
+  cloudinary.config({
+    cloud_name: env.CLOUDINARY_CLOUD_NAME,
+    api_key: env.CLOUDINARY_API_KEY,
+    api_secret: env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+}
+
+class CloudinaryStorageService implements StorageService {
+  async saveFile(file: Express.Multer.File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'localconnect_uploads' },
+        (error, result) => {
+          if (error || !result) {
+            return reject(error || new Error('Cloudinary upload failed'));
+          }
+          resolve(result.secure_url);
+        }
+      );
+
+      if (file.buffer) {
+        streamifier.createReadStream(file.buffer).pipe(uploadStream);
+      } else if (file.path) {
+        fs.createReadStream(file.path).pipe(uploadStream);
+      } else {
+        reject(new Error('No file buffer or path provided for upload'));
+      }
+    });
+  }
+
+  async deleteFile(fileUrl: string): Promise<void> {
+    try {
+      const match = fileUrl.match(/\/v\d+\/([^/]+\/[^.]+)\./);
+      if (match && match[1]) {
+        await cloudinary.uploader.destroy(match[1]);
+      }
+    } catch (err) {
+      console.error('Failed to delete file from Cloudinary:', err);
+    }
+  }
+}
+
+export const storageService: StorageService = isCloudinaryConfigured
+  ? new CloudinaryStorageService()
+  : new LocalStorageService();

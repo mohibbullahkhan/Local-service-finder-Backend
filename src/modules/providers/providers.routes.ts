@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { Role } from '@prisma/client';
 import { providersController } from './providers.controller';
 import { authenticate } from '../../middleware/auth';
-import { roleGuard } from '../../middleware/roleGuard';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import {
@@ -23,6 +21,60 @@ const upload = multer({
 
 const router = Router();
 
+// Sub-router for /me (Provider self-management)
+const meRouter = Router();
+meRouter.use(authenticate);
+
+meRouter.post(
+  '/',
+  validate({ body: createProviderProfileSchema }),
+  asyncHandler(providersController.createOwnProfile)
+);
+
+meRouter.get('/', asyncHandler(providersController.getOwnProfile));
+
+meRouter.patch(
+  '/',
+  validate({ body: updateProviderProfileSchema }),
+  asyncHandler(providersController.updateOwnProfile)
+);
+
+meRouter.put(
+  '/',
+  validate({ body: updateProviderProfileSchema }),
+  asyncHandler(providersController.updateOwnProfile)
+);
+
+// Services management under /me/services
+meRouter.post(
+  '/services',
+  validate({ body: createServiceSchema }),
+  asyncHandler(providersController.addService)
+);
+
+meRouter.patch(
+  '/services/:id',
+  validate({ body: updateServiceSchema }),
+  asyncHandler(providersController.updateService)
+);
+
+meRouter.delete('/services/:id', asyncHandler(providersController.deleteService));
+
+// Photos management under /me/photos
+meRouter.post(
+  '/photos',
+  upload.single('photo'),
+  asyncHandler(providersController.addPhoto)
+);
+
+meRouter.delete('/photos/:id', asyncHandler(providersController.deletePhoto));
+
+// Verification request under /me/verification
+meRouter.post('/verification', asyncHandler(providersController.requestVerification));
+
+// Mount meRouter at /me
+router.use('/me', meRouter);
+
 // Public routes
 router.get(
   '/',
@@ -37,49 +89,5 @@ router.get(
   validate({ query: getReviewsQuerySchema }),
   asyncHandler(reviewsController.getProviderReviews)
 );
-
-// Provider self-management routes
-router.use('/me', authenticate, roleGuard([Role.PROVIDER]));
-
-router.post(
-  '/me',
-  validate({ body: createProviderProfileSchema }),
-  asyncHandler(providersController.createOwnProfile)
-);
-
-router.get('/me', asyncHandler(providersController.getOwnProfile));
-
-router.patch(
-  '/me',
-  validate({ body: updateProviderProfileSchema }),
-  asyncHandler(providersController.updateOwnProfile)
-);
-
-// Services management
-router.post(
-  '/me/services',
-  validate({ body: createServiceSchema }),
-  asyncHandler(providersController.addService)
-);
-
-router.patch(
-  '/me/services/:id',
-  validate({ body: updateServiceSchema }),
-  asyncHandler(providersController.updateService)
-);
-
-router.delete('/me/services/:id', asyncHandler(providersController.deleteService));
-
-// Photos management
-router.post(
-  '/me/photos',
-  upload.single('photo'),
-  asyncHandler(providersController.addPhoto)
-);
-
-router.delete('/me/photos/:id', asyncHandler(providersController.deletePhoto));
-
-// Verification request
-router.post('/me/verification', asyncHandler(providersController.requestVerification));
 
 export default router;

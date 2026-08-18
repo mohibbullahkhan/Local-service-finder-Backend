@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../utils/AppError';
 import { generateAccessToken, generateRefreshToken, hashToken } from '../../utils/jwt';
-import { RegisterInput, LoginInput, RefreshInput, LogoutInput } from './auth.schema';
+import { RegisterInput, LoginInput, RefreshInput, LogoutInput, ResetPasswordInput } from './auth.schema';
 
 export class AuthService {
   async register(input: RegisterInput) {
@@ -191,6 +191,31 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async resetPassword(input: ResetPasswordInput) {
+    const user = await prisma.user.findUnique({
+      where: { phone: input.phone },
+    });
+
+    if (!user) {
+      throw new AppError('No account registered with this phone number', 404, 'USER_NOT_FOUND');
+    }
+
+    const passwordHash = await bcrypt.hash(input.newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    // Revoke all existing refresh tokens for security
+    await prisma.refreshToken.updateMany({
+      where: { userId: user.id },
+      data: { revoked: true },
+    });
+
+    return { message: 'Password updated successfully. Please log in with your new password.' };
   }
 }
 
